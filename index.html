@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hypercraft Configuration Fileserver - Demo</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .folder { cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Hypercraft Configuration Fileserver - Demo</h1>
+    <p>This is a demo for Hypercraft's Git-based configuration fileserver.</p>
+    <h2>File Explorer</h2>
+    <table id="file-explorer">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Date</th>
+                <th>Size</th>
+            </tr>
+        </thead>
+        <tbody id="file-list"></tbody>
+    </table>
+
+    <script>
+        const fileList = document.getElementById('file-list');
+        const apiBase = 'https://api.github.com/repos/wpetersen-hypercraft/wpetersen-hypercraft.github.io/contents/';
+
+        function fetchFiles(path = '') {
+            fetch(apiBase + path)
+                .then(response => response.json())
+                .then(data => {
+                    fileList.innerHTML = '';
+                    data.forEach(item => {
+                        const row = fileList.insertRow();
+                        const nameCell = row.insertCell(0);
+                        const dateCell = row.insertCell(1);
+                        const sizeCell = row.insertCell(2);
+
+                        const icon = item.type === 'dir' ? '📁' : '📄';
+                        nameCell.innerHTML = `${icon} `;
+
+                        if (item.type === 'dir') {
+                            nameCell.innerHTML += `<span class="folder" data-path="${item.path}">${item.name}</span>`;
+                        } else {
+                            nameCell.innerHTML += `<a href="${item.download_url}" target="_blank">${item.name}</a>`;
+                        }
+
+                        dateCell.textContent = new Date(item.last_modified).toLocaleString();
+                        sizeCell.textContent = item.size ? `${(item.size / 1024).toFixed(2)} KB` : '-';
+                    });
+
+                    document.querySelectorAll('.folder').forEach(folder => {
+                        folder.addEventListener('click', () => fetchFiles(folder.dataset.path));
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        fetchFiles('resources');
+    </script>
+</body>
+</html>
