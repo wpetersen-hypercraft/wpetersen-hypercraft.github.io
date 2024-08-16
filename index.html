@@ -1,19 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hypercraft Configuration Fileserver - Demo</title>
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #f2f2f2; }
-        tr:nth-child(even) { background-color: #f9f9f9; }
-        .folder { cursor: pointer; }
-        #breadcrumb { margin-bottom: 10px; }
-    </style>
-    <base href="/">
 </head>
 <body>
     <h1>Hypercraft Configuration Fileserver - Demo</h1>
@@ -34,9 +18,9 @@
     <script>
         const fileList = document.getElementById('file-list');
         const breadcrumb = document.getElementById('breadcrumb');
-        const apiBase = 'https://api.github.com/repos/wpetersen-hypercraft/wpetersen-hypercraft.github.io/';
+        const apiBase = 'https://api.github.com/repos/wpetersen-hypercraft/wpetersen-hypercraft.github.io/contents/';
         const rootPath = 'contents';
-    
+
         function getPathFromUrl() {
             let path = window.location.pathname.split('/').filter(Boolean);
             if (path[0] !== rootPath) {
@@ -44,35 +28,65 @@
             }
             return path.join('/');
         }
-    
+
         function fetchFiles(path) {
             fetch(`${apiBase}${path}`)
-                .then(response => response.json())
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
                 .then(data => renderFiles(data))
                 .catch(error => console.error('Error fetching files:', error));
         }
-    
+
         function renderFiles(files) {
             fileList.innerHTML = '';
             files.forEach(file => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${file.name}</td>
+                    <td class="${file.type === 'dir' ? 'folder' : ''}" data-path="${file.path}">${file.name}</td>
                     <td>${new Date(file.date).toLocaleString()}</td>
-                    <td>${file.size}</td>
+                    <td>${file.size ? file.size : '-'}</td>
                 `;
                 fileList.appendChild(row);
             });
+
+            document.querySelectorAll('.folder').forEach(folder => {
+                folder.addEventListener('click', (event) => {
+                    const path = event.target.getAttribute('data-path');
+                    window.history.pushState({}, '', `/${path}`);
+                    updateBreadcrumb(path);
+                    fetchFiles(path);
+                });
+            });
         }
-    
+
         function updateBreadcrumb(path) {
-            breadcrumb.innerHTML = path.split('/').map((part, index, arr) => {
-                const href = '/' + arr.slice(0, index + 1).join('/');
+            const parts = path.split('/');
+            breadcrumb.innerHTML = parts.map((part, index) => {
+                const href = '/' + parts.slice(0, index + 1).join('/');
                 return `<a href="${href}">${part}</a>`;
             }).join(' / ');
+
+            document.querySelectorAll('#breadcrumb a').forEach(link => {
+                link.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    const path = event.target.getAttribute('href').substring(1);
+                    window.history.pushState({}, '', `/${path}`);
+                    fetchFiles(path);
+                });
+            });
         }
-    
+
         document.addEventListener('DOMContentLoaded', () => {
+            const path = getPathFromUrl();
+            updateBreadcrumb(path);
+            fetchFiles(path);
+        });
+
+        window.addEventListener('popstate', () => {
             const path = getPathFromUrl();
             updateBreadcrumb(path);
             fetchFiles(path);
