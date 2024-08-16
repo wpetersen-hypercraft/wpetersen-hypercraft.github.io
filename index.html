@@ -13,127 +13,13 @@
         .folder { cursor: pointer; }
         #breadcrumb { margin-bottom: 10px; }
     </style>
-    <base href="/contents/">
+    <script src="fileserver.js"></script>
 </head>
 <body>
     <h1>Hypercraft Configuration Fileserver - Demo</h1>
     <p>This is a demo for Hypercraft's Git-based configuration fileserver.</p>
     <div id="breadcrumb"></div>
     <h2>File Explorer</h2>
-    <table id="file-explorer">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Date</th>
-                <th>Size</th>
-            </tr>
-        </thead>
-        <tbody id="file-list"></tbody>
-    </table>
-
-    <script>
-        const fileList = document.getElementById('file-list');
-        const breadcrumb = document.getElementById('breadcrumb');
-        const apiBase = 'https://api.github.com/repos/wpetersen-hypercraft/wpetersen-hypercraft.github.io/contents/';
-        const rootPath = 'contents';
-        
-        function getPathFromUrl() {
-            let path = window.location.pathname.split('/').filter(Boolean);
-            // Remove 'contents' from the beginning if it exists
-            if (path[0] === 'contents') {
-                path.shift();
-            }
-            return path.join('/');
-        }
-        
-        function updateBreadcrumb(path) {
-            const parts = path.split('/').filter(Boolean);
-            let html = '<a href="/">Home</a>';
-            let currentPath = '';
-            parts.forEach((part) => {
-                currentPath += '/' + part;
-                html += ` / <a href="${currentPath}">${decodeURIComponent(part)}</a>`;
-            });
-            breadcrumb.innerHTML = html;
-        }
-        
-        function fetchFiles(path = '') {
-            updateBreadcrumb(path);
-            fetch(apiBase + path)
-                .then(response => response.json())
-                .then(data => {
-                    if (Array.isArray(data)) {
-                        data.sort((a, b) => {
-                            if (a.type !== b.type) {
-                                return a.type === 'dir' ? -1 : 1;
-                            }
-                            return a.name.localeCompare(b.name);
-                        });
-        
-                        fileList.innerHTML = '';
-                        data.forEach(item => {
-                            fetchItemDetails(item, path);
-                        });
-                    } else {
-                        // Single file, redirect to its raw content
-                        window.location.href = data.download_url;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                    fileList.innerHTML = '<tr><td colspan="3">Error loading content. Please try again.</td></tr>';
-                });
-        }
-        
-        function fetchItemDetails(item, path) {
-            fetch(`${apiBase}${item.path}?ref=main`)
-                .then(response => response.json())
-                .then(data => {
-                    const row = fileList.insertRow();
-                    const nameCell = row.insertCell(0);
-                    const dateCell = row.insertCell(1);
-                    const sizeCell = row.insertCell(2);
-        
-                    const icon = item.type === 'dir' ? '📁' : '📄';
-                    nameCell.innerHTML = `${icon} `;
-        
-                    const relativePath = item.path.replace(rootPath + '/', '');
-                    const displayName = decodeURIComponent(item.name);
-                    if (item.type === 'dir') {
-                        nameCell.innerHTML += `<a href="/${relativePath}" class="folder">${displayName}</a>`;
-                    } else {
-                        nameCell.innerHTML += `<a href="/${relativePath}">${displayName}</a>`;
-                    }
-        
-                    dateCell.textContent = new Date(data.commit.committer.date).toLocaleString();
-                    sizeCell.textContent = item.size ? `${(item.size / 1024).toFixed(2)} KB` : '-';
-                })
-                .catch(error => console.error('Error:', error));
-        }
-        
-        function handleNavigation(path) {
-            // Remove leading slash if present
-            path = path.replace(/^\//, '');
-            // Remove 'contents' from the beginning if it exists
-            path = path.replace(/^contents\//, '');
-            history.pushState(null, '', '/' + path);
-            fetchFiles(path);
-        }
-        
-        // Handle navigation
-        window.onpopstate = function(event) {
-            fetchFiles(getPathFromUrl());
-        };
-        
-        document.addEventListener('click', function(event) {
-            if (event.target.tagName === 'A') {
-                event.preventDefault();
-                handleNavigation(event.target.getAttribute('href'));
-            }
-        });
-        
-        // Initial load
-        handleNavigation(getPathFromUrl());
-    </script>
+    <table id="file-explorer"></table>
 </body>
 </html>
