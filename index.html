@@ -34,30 +34,32 @@
     <script>
         const fileList = document.getElementById('file-list');
         const breadcrumb = document.getElementById('breadcrumb');
-        const apiBase = 'https://api.github.com/repos/wpetersen-hypercraft/wpetersen-hypercraft.github.io/';
+        const apiBase = 'https://api.github.com/repos/wpetersen-hypercraft/wpetersen-hypercraft.github.io/contents/';
         const rootPath = 'contents';
         
         function getPathFromUrl() {
             let path = window.location.pathname.split('/').filter(Boolean);
-            return path.join('/') || rootPath;
+            // Remove 'contents' from the beginning if it exists
+            if (path[0] === 'contents') {
+                path.shift();
+            }
+            return path.join('/');
         }
         
         function updateBreadcrumb(path) {
-            const parts = path.split('/');
+            const parts = path.split('/').filter(Boolean);
             let html = '<a href="/">Home</a>';
             let currentPath = '';
-            parts.forEach((part, index) => {
-                if (part !== rootPath || index === 0) {
-                    currentPath += '/' + part;
-                    html += ` / <a href="${currentPath}">${decodeURIComponent(part)}</a>`;
-                }
+            parts.forEach((part) => {
+                currentPath += '/' + part;
+                html += ` / <a href="${currentPath}">${decodeURIComponent(part)}</a>`;
             });
             breadcrumb.innerHTML = html;
         }
         
         function fetchFiles(path = '') {
             updateBreadcrumb(path);
-            fetch(apiBase + 'contents/' + path)
+            fetch(apiBase + path)
                 .then(response => response.json())
                 .then(data => {
                     if (Array.isArray(data)) {
@@ -84,9 +86,9 @@
         }
         
         function fetchItemDetails(item, path) {
-            fetch(`https://api.github.com/repos/wpetersen-hypercraft/wpetersen-hypercraft.github.io/commits?path=${item.path}&page=1&per_page=1`)
+            fetch(`${apiBase}${item.path}?ref=main`)
                 .then(response => response.json())
-                .then(commits => {
+                .then(data => {
                     const row = fileList.insertRow();
                     const nameCell = row.insertCell(0);
                     const dateCell = row.insertCell(1);
@@ -98,27 +100,23 @@
                     const relativePath = item.path.replace(rootPath + '/', '');
                     const displayName = decodeURIComponent(item.name);
                     if (item.type === 'dir') {
-                        nameCell.innerHTML += `<a href="${relativePath}" class="folder">${displayName}</a>`;
+                        nameCell.innerHTML += `<a href="/${relativePath}" class="folder">${displayName}</a>`;
                     } else {
-                        nameCell.innerHTML += `<a href="${relativePath}">${displayName}</a>`;
+                        nameCell.innerHTML += `<a href="/${relativePath}">${displayName}</a>`;
                     }
         
-                    if (commits.length > 0) {
-                        dateCell.textContent = new Date(commits[0].commit.author.date).toLocaleString();
-                    } else {
-                        dateCell.textContent = 'N/A';
-                    }
-                    
+                    dateCell.textContent = new Date(data.commit.committer.date).toLocaleString();
                     sizeCell.textContent = item.size ? `${(item.size / 1024).toFixed(2)} KB` : '-';
                 })
                 .catch(error => console.error('Error:', error));
         }
         
         function handleNavigation(path) {
-            if (path === '/') {
-                path = '';
-            }
-            history.pushState(null, '', path);
+            // Remove leading slash if present
+            path = path.replace(/^\//, '');
+            // Remove 'contents' from the beginning if it exists
+            path = path.replace(/^contents\//, '');
+            history.pushState(null, '', '/' + path);
             fetchFiles(path);
         }
         
