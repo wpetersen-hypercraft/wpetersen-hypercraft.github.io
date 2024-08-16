@@ -102,20 +102,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 return response.json();
             })
             .then(data => {
-                console.log('Received item details:', data);
+                console.log('Received item details:', JSON.stringify(data, null, 2));
                 let itemPath = `/${path}/${item.name}`.replace(/\/+/g, '/');
                 const row = fileExplorer.querySelector(`a[href="${itemPath}"]`).closest('tr');
-                if (row && data.commit) {
-                    const date = new Date(data.commit.committer.date);
-                    console.log('Updating date for:', itemPath, 'to:', date.toLocaleString());
-                    row.cells[1].textContent = date.toLocaleString();
+                if (row) {
+                    let dateString = 'Date not available';
+                    if (data && data.commit && data.commit.committer && data.commit.committer.date) {
+                        dateString = new Date(data.commit.committer.date).toLocaleString();
+                    } else if (data && data.date) {
+                        // Fallback to 'date' property if it exists
+                        dateString = new Date(data.date).toLocaleString();
+                    }
+                    console.log('Updating date for:', itemPath, 'to:', dateString);
+                    row.cells[1].textContent = dateString;
                 } else {
-                    console.warn('Row not found or no commit data for item:', itemPath);
+                    console.warn('Row not found for item:', itemPath);
                 }
             })
             .catch(error => {
                 console.error('Error fetching item details:', error);
-                // Update the cell to show the error
                 let itemPath = `/${path}/${item.name}`.replace(/\/+/g, '/');
                 const row = fileExplorer.querySelector(`a[href="${itemPath}"]`).closest('tr');
                 if (row) {
@@ -123,7 +128,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
     }
-
+    
     function handleNavigation(path) {
         path = path.replace(/^\/+|\/+$/g, '');
         let parts = path.split('/').filter(Boolean);
