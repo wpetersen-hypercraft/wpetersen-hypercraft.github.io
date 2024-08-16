@@ -13,7 +13,6 @@
         .folder { cursor: pointer; }
         #breadcrumb { margin-bottom: 10px; }
     </style>
-    <base href="/">
 </head>
 <body>
     <h1>Hypercraft Configuration Fileserver - Demo</h1>
@@ -32,15 +31,17 @@
     </table>
 
     <script>
+        const fileList = document.getElementById('file-list');
+        const breadcrumb = document.getElementById('breadcrumb');
+        const apiBase = 'https://api.github.com/repos/wpetersen-hypercraft/wpetersen-hypercraft.github.io/contents/';
         const rootPath = 'contents';
-
+        
         function getPathFromUrl() {
             let path = window.location.pathname.split('/').filter(Boolean);
-            const rootIndex = path.indexOf(rootPath);
-            if (rootIndex !== -1) {
-                return path.slice(rootIndex).join('/');
+            if (path[0] !== rootPath) {
+                path.unshift(rootPath);
             }
-            return rootPath;
+            return path.join('/');
         }
         
         function updateBreadcrumb(path) {
@@ -48,20 +49,12 @@
             let html = '<a href="/">Home</a>';
             let currentPath = '';
             parts.forEach((part, index) => {
-                currentPath += '/' + part;
-                html += ` / <a href="${currentPath}">${decodeURIComponent(part)}</a>`;
+                if (part) {
+                    currentPath += '/' + part;
+                    html += ` / <a href="${currentPath}">${decodeURIComponent(part)}</a>`;
+                }
             });
             breadcrumb.innerHTML = html;
-        }
-        
-        function handleNavigation(path) {
-            if (path === '/' || path === '') {
-                path = '/' + rootPath;
-            } else if (!path.startsWith('/' + rootPath)) {
-                path = '/' + rootPath + path;
-            }
-            history.pushState(null, '', path);
-            fetchFiles(path.slice(1)); // Remove leading slash for API call
         }
         
         function fetchFiles(path = '') {
@@ -104,7 +97,6 @@
                     const icon = item.type === 'dir' ? '📁' : '📄';
                     nameCell.innerHTML = `${icon} `;
         
-                    const relativePath = item.path.replace(rootPath + '/', '');
                     const displayName = decodeURIComponent(item.name);
                     if (item.type === 'dir') {
                         nameCell.innerHTML += `<a href="/${item.path}" class="folder">${displayName}</a>`;
@@ -123,8 +115,29 @@
                 .catch(error => console.error('Error:', error));
         }
         
+        function handleNavigation(path) {
+            if (path === '/') {
+                path = '/' + rootPath;
+            } else if (!path.startsWith('/' + rootPath)) {
+                path = '/' + rootPath + path;
+            }
+            history.pushState(null, '', path);
+            fetchFiles(path.slice(1)); // Remove leading slash for API call
+        }
+        
+        // Handle navigation
+        window.onpopstate = function(event) {
+            fetchFiles(getPathFromUrl());
+        };
+        
+        document.addEventListener('click', function(event) {
+            if (event.target.tagName === 'A') {
+                event.preventDefault();
+                handleNavigation(event.target.getAttribute('href'));
+            }
+        });
+        
         // Initial load
-        handleNavigation(window.location.pathname);
-    </script>
+        handleNavigation(window.location.pathname);    </script>
 </body>
 </html>
