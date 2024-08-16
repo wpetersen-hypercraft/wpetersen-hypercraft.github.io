@@ -91,25 +91,37 @@ document.addEventListener('DOMContentLoaded', function() {
     function fetchItemDetails(item, path) {
         const apiPath = `/${path}/${item.name}`.replace(/^\/+/, '');
         const fullApiUrl = `${apiBase}/${apiPath}`;
+        console.log('Fetching details for:', fullApiUrl);
         
         fetch(fullApiUrl)
             .then(response => {
+                console.log('Item details response status:', response.status);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 return response.json();
             })
             .then(data => {
+                console.log('Received item details:', data);
                 let itemPath = `/${path}/${item.name}`.replace(/\/+/g, '/');
                 const row = fileExplorer.querySelector(`a[href="${itemPath}"]`).closest('tr');
                 if (row && data.commit) {
                     const date = new Date(data.commit.committer.date);
+                    console.log('Updating date for:', itemPath, 'to:', date.toLocaleString());
                     row.cells[1].textContent = date.toLocaleString();
                 } else {
                     console.warn('Row not found or no commit data for item:', itemPath);
                 }
             })
-            .catch(error => console.error('Error fetching item details:', error));
+            .catch(error => {
+                console.error('Error fetching item details:', error);
+                // Update the cell to show the error
+                let itemPath = `/${path}/${item.name}`.replace(/\/+/g, '/');
+                const row = fileExplorer.querySelector(`a[href="${itemPath}"]`).closest('tr');
+                if (row) {
+                    row.cells[1].textContent = 'Error loading date';
+                }
+            });
     }
 
     function handleNavigation(path) {
