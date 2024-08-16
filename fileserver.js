@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const breadcrumb = document.getElementById('breadcrumb');
     const fileExplorer = document.querySelector('table');
+    // Update this URL to match your exact repository name and structure
     const apiBase = 'https://api.github.com/repos/wpetersen-hypercraft/wpetersen-hypercraft.github.io/contents/';
     const rootPath = 'contents';
 
@@ -28,11 +29,12 @@ document.addEventListener('DOMContentLoaded', function() {
     function fetchFiles(path) {
         updateBreadcrumb(path);
         const apiPath = path.replace(/^contents\//, '');
-        console.log('Fetching files for path:', apiPath);
+        const fullApiUrl = apiBase + apiPath;
+        console.log('Fetching files from URL:', fullApiUrl);
         
-        fetch(apiBase + apiPath)
+        fetch(fullApiUrl)
             .then(response => {
-                console.log('API Response:', response);
+                console.log('API Response status:', response.status);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
@@ -52,7 +54,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <thead>
                             <tr>
                                 <th>Name</th>
-                                <th>Date</th>
+                                <th>Type</th>
                                 <th>Size</th>
                             </tr>
                         </thead>
@@ -64,7 +66,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         tableHtml += `
                             <tr>
                                 <td>${item.type === 'dir' ? '📁' : '📄'} <a href="${itemPath}">${decodeURIComponent(item.name)}</a></td>
-                                <td>Loading...</td>
+                                <td>${item.type}</td>
                                 <td>${item.size ? `${(item.size / 1024).toFixed(2)} KB` : '-'}</td>
                             </tr>
                         `;
@@ -72,40 +74,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     tableHtml += '</tbody>';
                     fileExplorer.innerHTML = tableHtml;
-
-                    data.forEach(item => fetchItemDetails(item, path));
-                } else {
+                } else if (data.type === 'file') {
                     console.log('Redirecting to raw content:', data.download_url);
                     window.location.href = data.download_url;
+                } else {
+                    throw new Error('Unexpected data format received from API');
                 }
             })
             .catch(error => {
                 console.error('Error in fetchFiles:', error);
-                fileExplorer.innerHTML = `<tr><td colspan="3">Error loading content: ${error.message}. Please try again.</td></tr>`;
+                fileExplorer.innerHTML = `<tr><td colspan="3">Error loading content: ${error.message}. Please check the console for more details and try again.</td></tr>`;
             });
-    }
-
-    function fetchItemDetails(item, path) {
-        const apiPath = `${path}/${item.name}`.replace(/^contents\//, '');
-        console.log('Fetching details for item:', apiPath);
-        
-        fetch(`${apiBase}${apiPath}?ref=main`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                let itemPath = `/${path}/${item.name}`.replace(/\/+/g, '/');
-                const row = fileExplorer.querySelector(`a[href="${itemPath}"]`).closest('tr');
-                if (row) {
-                    row.cells[1].textContent = new Date(data.commit.committer.date).toLocaleString();
-                } else {
-                    console.warn('Row not found for item:', itemPath);
-                }
-            })
-            .catch(error => console.error('Error in fetchItemDetails:', error));
     }
 
     function handleNavigation(path) {
