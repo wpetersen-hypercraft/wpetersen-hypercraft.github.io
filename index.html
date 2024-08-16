@@ -11,11 +11,13 @@
         th { background-color: #f2f2f2; }
         tr:nth-child(even) { background-color: #f9f9f9; }
         .folder { cursor: pointer; }
+        #breadcrumb { margin-bottom: 10px; }
     </style>
 </head>
 <body>
     <h1>Hypercraft Configuration Fileserver - Demo</h1>
     <p>This is a demo for Hypercraft's Git-based configuration fileserver.</p>
+    <div id="breadcrumb"></div>
     <h2>File Explorer</h2>
     <table id="file-explorer">
         <thead>
@@ -30,24 +32,52 @@
 
     <script>
         const fileList = document.getElementById('file-list');
+        const breadcrumb = document.getElementById('breadcrumb');
         const apiBase = 'https://api.github.com/repos/wpetersen-hypercraft/wpetersen-hypercraft.github.io/contents/';
+        const rootPath = 'contents';
+
+        function getPathFromUrl() {
+            let path = window.location.pathname.split('/').filter(Boolean);
+            if (path[0] !== rootPath) {
+                path.unshift(rootPath);
+            }
+            return path.join('/');
+        }
+
+        function updateBreadcrumb(path) {
+            const parts = path.split('/');
+            let html = '<a href="/">Home</a>';
+            let currentPath = '';
+            parts.forEach((part, index) => {
+                if (part !== rootPath) {
+                    currentPath += '/' + part;
+                    html += ` / <a href="${currentPath}">${part}</a>`;
+                }
+            });
+            breadcrumb.innerHTML = html;
+        }
 
         function fetchFiles(path = '') {
+            updateBreadcrumb(path);
             fetch(apiBase + path)
                 .then(response => response.json())
                 .then(data => {
-                    // Sort the data: folders first, then files, both in alphabetical order
-                    data.sort((a, b) => {
-                        if (a.type !== b.type) {
-                            return a.type === 'dir' ? -1 : 1;
-                        }
-                        return a.name.localeCompare(b.name);
-                    });
+                    if (Array.isArray(data)) {
+                        data.sort((a, b) => {
+                            if (a.type !== b.type) {
+                                return a.type === 'dir' ? -1 : 1;
+                            }
+                            return a.name.localeCompare(b.name);
+                        });
 
-                    fileList.innerHTML = '';
-                    data.forEach(item => {
-                        fetchItemDetails(item, path);
-                    });
+                        fileList.innerHTML = '';
+                        data.forEach(item => {
+                            fetchItemDetails(item, path);
+                        });
+                    } else {
+                        // Single file, redirect to its raw content
+                        window.location.href = data.download_url;
+                    }
                 })
                 .catch(error => console.error('Error:', error));
         }
@@ -65,9 +95,9 @@
                     nameCell.innerHTML = `${icon} `;
 
                     if (item.type === 'dir') {
-                        nameCell.innerHTML += `<span class="folder" data-path="${item.path}">${item.name}</span>`;
+                        nameCell.innerHTML += `<a href="${item.path}" class="folder">${item.name}</a>`;
                     } else {
-                        nameCell.innerHTML += `<a href="${item.download_url}" target="_blank">${item.name}</a>`;
+                        nameCell.innerHTML += `<a href="${item.path}">${item.name}</a>`;
                     }
 
                     if (commits.length > 0) {
@@ -77,15 +107,26 @@
                     }
                     
                     sizeCell.textContent = item.size ? `${(item.size / 1024).toFixed(2)} KB` : '-';
-
-                    if (item.type === 'dir') {
-                        nameCell.querySelector('.folder').addEventListener('click', () => fetchFiles(item.path));
-                    }
                 })
                 .catch(error => console.error('Error:', error));
         }
 
-        fetchFiles('contents');
+        // Handle navigation
+        window.onpopstate = function(event) {
+            fetchFiles(getPathFromUrl());
+        };
+
+        document.addEventListener('click', function(event) {
+            if (event.target.tagName === 'A') {
+                event.preventDefault();
+                const path = event.target.getAttribute('href');
+                history.pushState(null, '', path);
+                fetchFiles(path);
+            }
+        });
+
+        // Initial load
+        fetchFiles(getPathFromUrl());
     </script>
 </body>
 </html>
