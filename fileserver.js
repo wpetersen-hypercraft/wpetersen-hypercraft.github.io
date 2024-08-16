@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let html = `<a href="/${rootPath}">Home</a>`;
         let currentPath = `/${rootPath}`;
         parts.forEach((part, index) => {
-            if (index > 0) { // Skip the first 'contents' part
+            if (index > 0) {
                 currentPath += '/' + part;
                 html += ` / <a href="${currentPath}">${decodeURIComponent(part)}</a>`;
             }
@@ -27,15 +27,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function fetchFiles(path) {
         updateBreadcrumb(path);
-        const apiPath = path.replace(/^contents\//, ''); // Remove leading 'contents/' for API call
+        const apiPath = path.replace(/^contents\//, '');
+        console.log('Fetching files for path:', apiPath);
+        
         fetch(apiBase + apiPath)
             .then(response => {
+                console.log('API Response:', response);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 return response.json();
             })
             .then(data => {
+                console.log('Received data:', data);
                 if (Array.isArray(data)) {
                     data.sort((a, b) => {
                         if (a.type !== b.type) {
@@ -71,42 +75,49 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     data.forEach(item => fetchItemDetails(item, path));
                 } else {
-                    // Single file, redirect to its raw content
+                    console.log('Redirecting to raw content:', data.download_url);
                     window.location.href = data.download_url;
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
-                fileExplorer.innerHTML = '<tr><td colspan="3">Error loading content. Please try again.</td></tr>';
+                console.error('Error in fetchFiles:', error);
+                fileExplorer.innerHTML = `<tr><td colspan="3">Error loading content: ${error.message}. Please try again.</td></tr>`;
             });
     }
 
     function fetchItemDetails(item, path) {
         const apiPath = `${path}/${item.name}`.replace(/^contents\//, '');
+        console.log('Fetching details for item:', apiPath);
+        
         fetch(`${apiBase}${apiPath}?ref=main`)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 let itemPath = `/${path}/${item.name}`.replace(/\/+/g, '/');
                 const row = fileExplorer.querySelector(`a[href="${itemPath}"]`).closest('tr');
-                row.cells[1].textContent = new Date(data.commit.committer.date).toLocaleString();
+                if (row) {
+                    row.cells[1].textContent = new Date(data.commit.committer.date).toLocaleString();
+                } else {
+                    console.warn('Row not found for item:', itemPath);
+                }
             })
-            .catch(error => console.error('Error:', error));
+            .catch(error => console.error('Error in fetchItemDetails:', error));
     }
 
     function handleNavigation(path) {
-        // Remove leading and trailing slashes
         path = path.replace(/^\/+|\/+$/g, '');
-        
-        // Split the path into parts
         let parts = path.split('/').filter(Boolean);
         
-        // Ensure 'contents' is the first part, but only once
         if (parts[0] !== rootPath) {
             parts.unshift(rootPath);
         }
         
-        // Reconstruct the path
         path = '/' + parts.join('/');
+        console.log('Navigating to:', path);
         
         history.pushState(null, '', path);
         fetchFiles(parts.join('/'));
