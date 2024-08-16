@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <thead>
                             <tr>
                                 <th>Name</th>
-                                <th>Type</th>
+                                <th>Date</th>
                                 <th>Size</th>
                             </tr>
                         </thead>
@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         tableHtml += `
                             <tr>
                                 <td>${item.type === 'dir' ? '📁' : '📄'} <a href="${itemPath}">${decodeURIComponent(item.name)}</a></td>
-                                <td>${item.type}</td>
+                                <td>Loading...</td>
                                 <td>${item.size ? `${(item.size / 1024).toFixed(2)} KB` : '-'}</td>
                             </tr>
                         `;
@@ -73,6 +73,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     tableHtml += '</tbody>';
                     fileExplorer.innerHTML = tableHtml;
+
+                    data.forEach(item => fetchItemDetails(item, path));
                 } else if (data.type === 'file') {
                     console.log('Redirecting to raw content:', data.download_url);
                     window.location.href = data.download_url;
@@ -84,6 +86,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error in fetchFiles:', error);
                 fileExplorer.innerHTML = `<tr><td colspan="3">Error loading content: ${error.message}. Please check the console for more details and try again.</td></tr>`;
             });
+    }
+
+    function fetchItemDetails(item, path) {
+        const apiPath = `/${path}/${item.name}`.replace(/^\/+/, '');
+        const fullApiUrl = `${apiBase}/${apiPath}`;
+        
+        fetch(fullApiUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                let itemPath = `/${path}/${item.name}`.replace(/\/+/g, '/');
+                const row = fileExplorer.querySelector(`a[href="${itemPath}"]`).closest('tr');
+                if (row) {
+                    row.cells[1].textContent = new Date(data.commit.committer.date).toLocaleString();
+                } else {
+                    console.warn('Row not found for item:', itemPath);
+                }
+            })
+            .catch(error => console.error('Error fetching item details:', error));
     }
 
     function handleNavigation(path) {
