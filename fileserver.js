@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         }
                         return a.name.localeCompare(b.name);
                     });
-
+    
                     let tableHtml = `
                         <thead>
                             <tr>
@@ -59,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </thead>
                         <tbody>
                     `;
-
+    
                     data.forEach(item => {
                         let itemPath = `/${path}/${item.name}`.replace(/\/+/g, '/');
                         tableHtml += `
@@ -70,10 +70,10 @@ document.addEventListener('DOMContentLoaded', function() {
                             </tr>
                         `;
                     });
-
+    
                     tableHtml += '</tbody>';
                     fileExplorer.innerHTML = tableHtml;
-
+    
                     data.forEach(item => fetchItemDetails(item, path));
                 } else if (data.type === 'file') {
                     console.log('Redirecting to raw content:', data.download_url);
@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 fileExplorer.innerHTML = `<tr><td colspan="3">Error loading content: ${error.message}. Please check the console for more details and try again.</td></tr>`;
             });
     }
-
+    
     function fetchItemDetails(item, path) {
         const apiPath = `/${path}/${item.name}`.replace(/^\/+/, '');
         const fullApiUrl = `${apiBase}/${apiPath}`;
@@ -102,10 +102,11 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(data => {
                 let itemPath = `/${path}/${item.name}`.replace(/\/+/g, '/');
                 const row = fileExplorer.querySelector(`a[href="${itemPath}"]`).closest('tr');
-                if (row) {
-                    row.cells[1].textContent = new Date(data.commit.committer.date).toLocaleString();
+                if (row && data.commit) {
+                    const date = new Date(data.commit.committer.date);
+                    row.cells[1].textContent = date.toLocaleString();
                 } else {
-                    console.warn('Row not found for item:', itemPath);
+                    console.warn('Row not found or no commit data for item:', itemPath);
                 }
             })
             .catch(error => console.error('Error fetching item details:', error));
