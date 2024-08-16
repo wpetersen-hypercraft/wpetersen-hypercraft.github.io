@@ -29,41 +29,52 @@
     </table>
 
     <script>
-        const fileList = document.getElementById('file-list');
-        const apiBase = 'https://api.github.com/repos/wpetersen-hypercraft/wpetersen-hypercraft.github.io/contents/';
-
-        function fetchFiles(path = '') {
-            fetch(apiBase + path)
-                .then(response => response.json())
-                .then(data => {
-                    fileList.innerHTML = '';
-                    data.forEach(item => {
-                        const row = fileList.insertRow();
-                        const nameCell = row.insertCell(0);
-                        const dateCell = row.insertCell(1);
-                        const sizeCell = row.insertCell(2);
-
-                        const icon = item.type === 'dir' ? '📁' : '📄';
-                        nameCell.innerHTML = `${icon} `;
-
-                        if (item.type === 'dir') {
-                            nameCell.innerHTML += `<span class="folder" data-path="${item.path}">${item.name}</span>`;
-                        } else {
-                            nameCell.innerHTML += `<a href="${item.download_url}" target="_blank">${item.name}</a>`;
-                        }
-
-                        dateCell.textContent = new Date(item.last_modified).toLocaleString();
-                        sizeCell.textContent = item.size ? `${(item.size / 1024).toFixed(2)} KB` : '-';
-                    });
-
-                    document.querySelectorAll('.folder').forEach(folder => {
-                        folder.addEventListener('click', () => fetchFiles(folder.dataset.path));
-                    });
-                })
-                .catch(error => console.error('Error:', error));
+        // Function to format the date
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            if (isNaN(date.getTime())) {
+            return "N/A"; // Return "N/A" for invalid dates
+            }
+            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
         }
-
-        fetchFiles('resources');
+        
+        // Function to load and display files
+        function loadFiles() {
+            fetch('https://api.github.com/repos/wpetersen-hypercraft/wpetersen-hypercraft.github.io/contents/')
+            .then(response => response.json())
+            .then(data => {
+                const fileList = document.getElementById('file-list');
+                fileList.innerHTML = ''; // Clear existing content
+        
+                data.forEach(item => {
+                if (item.type === 'file') {
+                    const row = document.createElement('tr');
+                    
+                    const nameCell = document.createElement('td');
+                    const link = document.createElement('a');
+                    link.href = item.download_url;
+                    link.textContent = item.name;
+                    nameCell.appendChild(link);
+                    
+                    const dateCell = document.createElement('td');
+                    dateCell.textContent = formatDate(item.created_at); // Use the new formatDate function
+                    
+                    const sizeCell = document.createElement('td');
+                    sizeCell.textContent = (item.size / 1024).toFixed(2) + ' KB';
+                    
+                    row.appendChild(nameCell);
+                    row.appendChild(dateCell);
+                    row.appendChild(sizeCell);
+                    
+                    fileList.appendChild(row);
+                }
+                });
+            })
+            .catch(error => console.error('Error:', error));
+        }
+        
+        // Call loadFiles when the page loads
+        window.onload = loadFiles;
     </script>
 </body>
 </html>
