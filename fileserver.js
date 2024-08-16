@@ -29,102 +29,106 @@ document.addEventListener('DOMContentLoaded', function() {
         updateBreadcrumb(path);
         const apiPath = '/' + path;
         const fullApiUrl = apiBase + apiPath;
+        
         console.log('Fetching files from URL:', fullApiUrl);
         
         fetch(fullApiUrl)
-            .then(response => {
-                console.log('API Response status:', response.status);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Received data:', data);
-                if (Array.isArray(data)) {
-                    data.sort((a, b) => {
-                        if (a.type !== b.type) {
-                            return a.type === 'dir' ? -1 : 1;
-                        }
-                        return a.name.localeCompare(b.name);
-                    });
+        .then(response => {
+            console.log('API Response status:', response.status);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Received data:', data);
+            if (Array.isArray(data)) {
+                data.sort((a, b) => {
+                    if (a.type !== b.type) {
+                        return a.type === 'dir' ? -1 : 1;
+                    }
+                    return a.name.localeCompare(b.name);
+                });
     
-                    let tableHtml = `
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Date</th>
-                                <th>Size</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                let tableHtml = `
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Date</th>
+                            <th>Size</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                `;
+    
+                data.forEach(item => {
+                    let itemPath = `/${path}/${item.name}`.replace(/\/+/g, '/');
+                    tableHtml += `
+                        <tr>
+                            <td>${item.type === 'dir' ? '📁' : '📄'} <a href="${itemPath}">${decodeURIComponent(item.name)}</a></td>
+                            <td>Loading...</td>
+                            <td>${item.size ? `${(item.size / 1024).toFixed(2)} KB` : '-'}</td>
+                        </tr>
                     `;
+                });
     
-                    data.forEach(item => {
-                        let itemPath = `/${path}/${item.name}`.replace(/\/+/g, '/');
-                        tableHtml += `
-                            <tr>
-                                <td>${item.type === 'dir' ? '📁' : '📄'} <a href="${itemPath}">${decodeURIComponent(item.name)}</a></td>
-                                <td>Loading...</td>
-                                <td>${item.size ? `${(item.size / 1024).toFixed(2)} KB` : '-'}</td>
-                            </tr>
-                        `;
-                    });
+                tableHtml += '</tbody>';
+                fileExplorer.innerHTML = tableHtml;
     
-                    tableHtml += '</tbody>';
-                    fileExplorer.innerHTML = tableHtml;
-    
-                    data.forEach(item => fetchItemDetails(item, path));
-                } else if (data.type === 'file') {
-                    console.log('Redirecting to raw content:', data.download_url);
-                    window.location.href = data.download_url;
-                } else {
-                    throw new Error('Unexpected data format received from API');
-                }
-            })
-            .catch(error => {
-                console.error('Error in fetchFiles:', error);
-                fileExplorer.innerHTML = `<tr><td colspan="3">Error loading content: ${error.message}. Please check the console for more details and try again.</td></tr>`;
-            });
+                data.forEach(item => fetchItemDetails(item, path));
+            } else if (data.type === 'file') {
+                console.log('Redirecting to raw content:', data.download_url);
+                window.location.href = data.download_url;
+            } else {
+                throw new Error('Unexpected data format received from API');
+            }
+        })
+        .catch(error => {
+            console.error('Error in fetchFiles:', error);
+            fileExplorer.innerHTML = `<tr><td colspan="3">Error loading content: ${error.message}. Please check the console for more details and try again.</td></tr>`;
+        });
     }
     
     function fetchItemDetails(item, path) {
-        const apiPath = `${path}/${item.name}`.replace(/^\/+/, '');
-        const fullApiUrl = `${apiBase.replace('/contents', '')}/commits?path=${encodeURIComponent(apiPath)}&page=1&per_page=1`;
-        console.log('Fetching commit details for:', fullApiUrl);
-        
-        fetch(fullApiUrl)
-            .then(response => {
-                console.log('Commit details response status:', response.status);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('Received commit details:', JSON.stringify(data, null, 2));
-                let itemPath = `/${path}/${item.name}`.replace(/\/+/g, '/');
-                const row = fileExplorer.querySelector(`a[href="${itemPath}"]`).closest('tr');
+        if (!item.sha) {
+            console.warn('No SHA available for item:', item.name);
+            return;
+        }
+    
+        const commitApiUrl = `${apiBase.replace('/contents', '')}/commits/${item.sha}`;
+        console.log('Fetching commit info from URL:', commitApiUrl);
+    
+        fetch(commitApiUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(commitData => {
+            console.log('Received commit data for', item.name, ':', commitData);
+            let itemPath = `/${path}/${item.name}`.replace(/\/+/g, '/');
+            const row = fileExplorer.querySelector(`a[href="${itemPath}"]`).closest('tr');
+            if (row && commitData.commit && commitData.commit.committer && commitData.commit.committer.date) {
+                const date = new Date(commitData.commit.committer.date);
+                const dateString = date.toLocaleString();
+                console.log('Updating date for:', itemPath, 'to:', dateString);
+                row.cells[1].textContent = dateString;
+            } else {
+                console.warn('Row not found or no commit data for item:', itemPath);
                 if (row) {
-                    let dateString = 'Date not available';
-                    if (data && data.length > 0 && data[0].commit && data[0].commit.committer && data[0].commit.committer.date) {
-                        const date = new Date(data[0].commit.committer.date);
-                        dateString = date.toLocaleString();
-                    }
-                    console.log('Updating date for:', itemPath, 'to:', dateString);
-                    row.cells[1].textContent = dateString;
-                } else {
-                    console.warn('Row not found for item:', itemPath);
+                    row.cells[1].textContent = 'Date not available';
                 }
-            })
-            .catch(error => {
-                console.error('Error fetching commit details:', error);
-                let itemPath = `/${path}/${item.name}`.replace(/\/+/g, '/');
-                const row = fileExplorer.querySelector(`a[href="${itemPath}"]`).closest('tr');
-                if (row) {
-                    row.cells[1].textContent = 'Error loading date';
-                }
-            });
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching commit details for', item.name, ':', error);
+            let itemPath = `/${path}/${item.name}`.replace(/\/+/g, '/');
+            const row = fileExplorer.querySelector(`a[href="${itemPath}"]`).closest('tr');
+            if (row) {
+                row.cells[1].textContent = 'Error loading date';
+            }
+        });
     }
 
     function handleNavigation(path) {
