@@ -32,32 +32,38 @@
     </table>
 
     <script>
-        const fileList = document.getElementById('file-list');
-        const breadcrumb = document.getElementById('breadcrumb');
-        const apiBase = 'https://api.github.com/repos/wpetersen-hypercraft/wpetersen-hypercraft.github.io/contents/';
         const rootPath = 'contents';
 
         function getPathFromUrl() {
             let path = window.location.pathname.split('/').filter(Boolean);
-            if (path[0] !== rootPath) {
-                path.unshift(rootPath);
+            const rootIndex = path.indexOf(rootPath);
+            if (rootIndex !== -1) {
+                return path.slice(rootIndex).join('/');
             }
-            return path.join('/');
+            return rootPath;
         }
-
+        
         function updateBreadcrumb(path) {
             const parts = path.split('/');
             let html = '<a href="/">Home</a>';
             let currentPath = '';
             parts.forEach((part, index) => {
-                if (part !== rootPath || index === 0) {
-                    currentPath += '/' + part;
-                    html += ` / <a href="${currentPath}">${decodeURIComponent(part)}</a>`;
-                }
+                currentPath += '/' + part;
+                html += ` / <a href="${currentPath}">${decodeURIComponent(part)}</a>`;
             });
             breadcrumb.innerHTML = html;
         }
-
+        
+        function handleNavigation(path) {
+            if (path === '/' || path === '') {
+                path = '/' + rootPath;
+            } else if (!path.startsWith('/' + rootPath)) {
+                path = '/' + rootPath + path;
+            }
+            history.pushState(null, '', path);
+            fetchFiles(path.slice(1)); // Remove leading slash for API call
+        }
+        
         function fetchFiles(path = '') {
             updateBreadcrumb(path);
             fetch(apiBase + path)
@@ -70,7 +76,7 @@
                             }
                             return a.name.localeCompare(b.name);
                         });
-
+        
                         fileList.innerHTML = '';
                         data.forEach(item => {
                             fetchItemDetails(item, path);
@@ -85,7 +91,7 @@
                     fileList.innerHTML = '<tr><td colspan="3">Error loading content. Please try again.</td></tr>';
                 });
         }
-
+        
         function fetchItemDetails(item, path) {
             fetch(`https://api.github.com/repos/wpetersen-hypercraft/wpetersen-hypercraft.github.io/commits?path=${item.path}&page=1&per_page=1`)
                 .then(response => response.json())
@@ -94,18 +100,18 @@
                     const nameCell = row.insertCell(0);
                     const dateCell = row.insertCell(1);
                     const sizeCell = row.insertCell(2);
-
+        
                     const icon = item.type === 'dir' ? '📁' : '📄';
                     nameCell.innerHTML = `${icon} `;
-
+        
                     const relativePath = item.path.replace(rootPath + '/', '');
                     const displayName = decodeURIComponent(item.name);
                     if (item.type === 'dir') {
-                        nameCell.innerHTML += `<a href="/${rootPath}/${relativePath}" class="folder">${displayName}</a>`;
+                        nameCell.innerHTML += `<a href="/${item.path}" class="folder">${displayName}</a>`;
                     } else {
-                        nameCell.innerHTML += `<a href="/${rootPath}/${relativePath}">${displayName}</a>`;
+                        nameCell.innerHTML += `<a href="/${item.path}">${displayName}</a>`;
                     }
-
+        
                     if (commits.length > 0) {
                         dateCell.textContent = new Date(commits[0].commit.author.date).toLocaleString();
                     } else {
@@ -116,32 +122,7 @@
                 })
                 .catch(error => console.error('Error:', error));
         }
-
-        function handleNavigation(path) {
-            if (path !== '/') {
-                sessionStorage.redirect = path;
-            }
-            history.pushState(null, '', path);
-            if (path === '/') {
-                path = rootPath;
-            } else {
-                path = rootPath + path;
-            }
-            fetchFiles(path);
-        }
-
-        // Handle navigation
-        window.onpopstate = function(event) {
-            fetchFiles(getPathFromUrl());
-        };
-
-        document.addEventListener('click', function(event) {
-            if (event.target.tagName === 'A') {
-                event.preventDefault();
-                handleNavigation(event.target.getAttribute('href'));
-            }
-        });
-
+        
         // Initial load
         handleNavigation(window.location.pathname);
     </script>
