@@ -6,25 +6,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function getPathFromUrl() {
         let path = window.location.pathname.split('/').filter(Boolean);
-        if (path[0] === rootPath) {
-            path.shift();
+        if (path[0] !== rootPath) {
+            path.unshift(rootPath);
+        } else if (path.length > 1 && path[1] === rootPath) {
+            // Remove duplicate 'contents' if it appears twice at the start
+            path.splice(1, 1);
         }
         return path.join('/');
     }
 
     function updateBreadcrumb(path) {
-        let html = '<a href="/">Home</a>';
-        let currentPath = '';
-        path.split('/').filter(Boolean).forEach((part) => {
-            currentPath += '/' + part;
-            html += ` / <a href="${currentPath}">${decodeURIComponent(part)}</a>`;
+        let parts = path.split('/').filter(Boolean);
+        let html = `<a href="/${rootPath}">Home</a>`;
+        let currentPath = `/${rootPath}`;
+        parts.forEach((part, index) => {
+            if (index > 0) { // Skip the first 'contents' part
+                currentPath += '/' + part;
+                html += ` / <a href="${currentPath}">${decodeURIComponent(part)}</a>`;
+            }
         });
         breadcrumb.innerHTML = html;
     }
 
-    function fetchFiles(path = '') {
+    function fetchFiles(path) {
         updateBreadcrumb(path);
-        fetch(apiBase + rootPath + '/' + path)
+        fetch(apiBase + path)
             .then(response => response.json())
             .then(data => {
                 if (Array.isArray(data)) {
@@ -47,9 +53,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     `;
 
                     data.forEach(item => {
+                        let itemPath = `/${rootPath}/${item.path.replace(`${rootPath}/`, '')}`;
                         tableHtml += `
                             <tr>
-                                <td>${item.type === 'dir' ? '📁' : '📄'} <a href="/${item.path.replace(rootPath + '/', '')}">${decodeURIComponent(item.name)}</a></td>
+                                <td>${item.type === 'dir' ? '📁' : '📄'} <a href="${itemPath}">${decodeURIComponent(item.name)}</a></td>
                                 <td>Loading...</td>
                                 <td>${item.size ? `${(item.size / 1024).toFixed(2)} KB` : '-'}</td>
                             </tr>
@@ -75,20 +82,37 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch(`${apiBase}${item.path}?ref=main`)
             .then(response => response.json())
             .then(data => {
-                const row = fileExplorer.querySelector(`a[href="/${item.path.replace(rootPath + '/', '')}"]`).closest('tr');
+                let itemPath = `/${rootPath}/${item.path.replace(`${rootPath}/`, '')}`;
+                const row = fileExplorer.querySelector(`a[href="${itemPath}"]`).closest('tr');
                 row.cells[1].textContent = new Date(data.commit.committer.date).toLocaleString();
             })
             .catch(error => console.error('Error:', error));
     }
 
     function handleNavigation(path) {
-        path = path.replace(/^\//, '').replace(new RegExp(`^${rootPath}\/`), '');
-        history.pushState(null, '', '/' + path);
-        fetchFiles(path);
+        // Remove leading and trailing slashes
+        path = path.replace(/^\/+|\/+$/g, '');
+        
+        // Split the path into parts
+        let parts = path.split('/').filter(Boolean);
+        
+        // Ensure 'contents' is the first part, but only once
+        if (parts[0] !== rootPath) {
+            parts.unshift(rootPath);
+        } else if (parts.length > 1 && parts[1] === rootPath) {
+            // Remove duplicate 'contents' if it appears twice at the start
+            parts.splice(1, 1);
+        }
+        
+        // Reconstruct the path
+        path = '/' + parts.join('/');
+        
+        history.pushState(null, '', path);
+        fetchFiles(parts.join('/'));
     }
 
     window.onpopstate = function(event) {
-        fetchFiles(getPathFromUrl());
+        handleNavigation(getPathFromUrl());
     };
 
     document.addEventListener('click', function(event) {
@@ -99,5 +123,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Initial load
-    fetchFiles(getPathFromUrl());
+    if (window.location.pathname === '/' || window.location.pathname === '') {
+        handleNavigation(`/${rootPath}`);
+    } else {
+        handleNavigation(getPathFromUrl());
+    }
 });
