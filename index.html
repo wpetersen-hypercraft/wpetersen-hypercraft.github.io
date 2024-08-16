@@ -99,10 +99,11 @@
                     nameCell.innerHTML = `${icon} `;
 
                     const relativePath = item.path.replace(rootPath + '/', '');
+                    const displayName = decodeURIComponent(item.name);
                     if (item.type === 'dir') {
-                        nameCell.innerHTML += `<a href="/${relativePath}" class="folder">${item.name}</a>`;
+                        nameCell.innerHTML += `<a href="/${rootPath}/${relativePath}" class="folder">${displayName}</a>`;
                     } else {
-                        nameCell.innerHTML += `<a href="/${relativePath}">${item.name}</a>`;
+                        nameCell.innerHTML += `<a href="/${rootPath}/${relativePath}">${displayName}</a>`;
                     }
 
                     if (commits.length > 0) {
