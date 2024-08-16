@@ -38,26 +38,26 @@
         
         function getPathFromUrl() {
             let path = window.location.pathname.split('/').filter(Boolean);
-            if (path[0] !== rootPath) {
-                path.unshift(rootPath);
+            const rootIndex = path.indexOf(rootPath);
+            if (rootIndex !== -1) {
+                return '/' + path.slice(rootIndex).join('/');
             }
-            return path.join('/');
+            return '/' + rootPath;
         }
         
         function updateBreadcrumb(path) {
-            const parts = path.split('/');
+            const parts = path.split('/').filter(Boolean);
             let html = '<a href="/">Home</a>';
             let currentPath = '';
             parts.forEach((part, index) => {
-                if (part) {
-                    currentPath += '/' + part;
-                    html += ` / <a href="${currentPath}">${decodeURIComponent(part)}</a>`;
-                }
+                currentPath += '/' + part;
+                html += ` / <a href="${currentPath}">${decodeURIComponent(part)}</a>`;
             });
             breadcrumb.innerHTML = html;
         }
         
-        function fetchFiles(path = '') {
+        function fetchFiles(path) {
+            path = path.replace(/^\//, ''); // Remove leading slash if present
             updateBreadcrumb(path);
             fetch(apiBase + path)
                 .then(response => response.json())
@@ -85,7 +85,7 @@
                 });
         }
         
-        function fetchItemDetails(item, path) {
+        function fetchItemDetails(item, currentPath) {
             fetch(`https://api.github.com/repos/wpetersen-hypercraft/wpetersen-hypercraft.github.io/commits?path=${item.path}&page=1&per_page=1`)
                 .then(response => response.json())
                 .then(commits => {
@@ -98,10 +98,11 @@
                     nameCell.innerHTML = `${icon} `;
         
                     const displayName = decodeURIComponent(item.name);
+                    const itemPath = '/' + item.path;
                     if (item.type === 'dir') {
-                        nameCell.innerHTML += `<a href="/${item.path}" class="folder">${displayName}</a>`;
+                        nameCell.innerHTML += `<a href="${itemPath}" class="folder">${displayName}</a>`;
                     } else {
-                        nameCell.innerHTML += `<a href="/${item.path}">${displayName}</a>`;
+                        nameCell.innerHTML += `<a href="${itemPath}">${displayName}</a>`;
                     }
         
                     if (commits.length > 0) {
@@ -115,29 +116,32 @@
                 .catch(error => console.error('Error:', error));
         }
         
-        function handleNavigation(path) {
-            if (path === '/') {
-                path = '/' + rootPath;
-            } else if (!path.startsWith('/' + rootPath)) {
-                path = '/' + rootPath + path;
+        function handleNavigation(path, pushState = true) {
+            if (!path.startsWith('/' + rootPath)) {
+                path = '/' + rootPath + (path.startsWith('/') ? path : '/' + path);
             }
-            history.pushState(null, '', path);
-            fetchFiles(path.slice(1)); // Remove leading slash for API call
+            if (pushState) {
+                history.pushState(null, '', path);
+            }
+            fetchFiles(path);
         }
         
         // Handle navigation
         window.onpopstate = function(event) {
-            fetchFiles(getPathFromUrl());
+            handleNavigation(getPathFromUrl(), false);
         };
         
         document.addEventListener('click', function(event) {
-            if (event.target.tagName === 'A') {
+            if (event.target.tagName === 'A' && !event.target.getAttribute('href').startsWith('http')) {
                 event.preventDefault();
                 handleNavigation(event.target.getAttribute('href'));
             }
         });
         
         // Initial load
-        handleNavigation(window.location.pathname);    </script>
+        document.addEventListener('DOMContentLoaded', function() {
+            handleNavigation(getPathFromUrl(), false);
+        });  
+    </script>
 </body>
 </html>
