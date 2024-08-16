@@ -33,7 +33,7 @@
         function formatDate(dateString) {
             const date = new Date(dateString);
             if (isNaN(date.getTime())) {
-            return "N/A"; // Return "N/A" for invalid dates
+            return "N/A";
             }
             return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
         }
@@ -53,7 +53,7 @@
         function loadFiles() {
             const owner = 'wpetersen-hypercraft';
             const repo = 'wpetersen-hypercraft.github.io';
-            const path = ''; // Empty string for root directory, or specify a path
+            const path = 'contents'; // Focusing on the 'contents' folder
         
             fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`)
             .then(response => response.json())
@@ -66,19 +66,12 @@
                 
                 const nameCell = document.createElement('td');
                 const link = document.createElement('a');
-                link.href = item.html_url; // Link to the file on GitHub
+                link.href = item.download_url;
                 link.textContent = item.name;
                 nameCell.appendChild(link);
                 
                 const dateCell = document.createElement('td');
-                // We'll need to fetch commit information to get the last modified date
-                fetchLastCommitDate(owner, repo, item.path)
-                    .then(date => {
-                    dateCell.textContent = formatDate(date);
-                    })
-                    .catch(() => {
-                    dateCell.textContent = 'N/A';
-                    });
+                dateCell.textContent = 'Loading...';
                 
                 const sizeCell = document.createElement('td');
                 sizeCell.textContent = formatSize(item.size);
@@ -88,13 +81,22 @@
                 row.appendChild(sizeCell);
                 
                 fileList.appendChild(row);
+        
+                // Fetch last modified date for each file
+                fetchLastModifiedDate(owner, repo, item.path)
+                    .then(date => {
+                    dateCell.textContent = formatDate(date);
+                    })
+                    .catch(() => {
+                    dateCell.textContent = 'N/A';
+                    });
                 });
             })
             .catch(error => console.error('Error:', error));
         }
         
-        // Function to fetch the last commit date for a file
-        function fetchLastCommitDate(owner, repo, path) {
+        // Function to fetch the last modified date for a specific file
+        function fetchLastModifiedDate(owner, repo, path) {
             return fetch(`https://api.github.com/repos/${owner}/${repo}/commits?path=${path}&page=1&per_page=1`)
             .then(response => response.json())
             .then(commits => {
