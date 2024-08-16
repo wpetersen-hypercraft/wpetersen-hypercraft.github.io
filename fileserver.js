@@ -1,8 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     const breadcrumb = document.getElementById('breadcrumb');
     const fileExplorer = document.querySelector('table');
-    // Update this URL to match your exact repository name and structure
-    const apiBase = 'https://api.github.com/repos/wpetersen-hypercraft/wpetersen-hypercraft.github.io/contents/';
+    const apiBase = 'https://api.github.com/repos/wpetersen-hypercraft/wpetersen-hypercraft.github.io/contents';
     const rootPath = 'contents';
 
     function getPathFromUrl() {
@@ -28,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function fetchFiles(path) {
         updateBreadcrumb(path);
-        const apiPath = path.replace(/^contents\//, '');
+        const apiPath = '/' + path;
         const fullApiUrl = apiBase + apiPath;
         console.log('Fetching files from URL:', fullApiUrl);
         
