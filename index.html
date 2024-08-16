@@ -34,8 +34,8 @@
     <script>
         const fileList = document.getElementById('file-list');
         const breadcrumb = document.getElementById('breadcrumb');
-        const apiBase = 'https://api.github.com/repos/wpetersen-hypercraft/wpetersen-hypercraft.github.io/contents/';
-        const rootPath = '';
+        const apiBase = 'https://api.github.com/repos/wpetersen-hypercraft/wpetersen-hypercraft.github.io/';
+        const rootPath = 'contents/';
 
         function getPathFromUrl() {
             let path = window.location.pathname.split('/').filter(Boolean);
