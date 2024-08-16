@@ -34,7 +34,7 @@
     <script>
         const fileList = document.getElementById('file-list');
         const breadcrumb = document.getElementById('breadcrumb');
-        const apiBase = 'https://api.github.com/repos/wpetersen-hypercraft/wpetersen-hypercraft.github.io/contents';
+        const apiBase = 'https://api.github.com/repos/wpetersen-hypercraft/wpetersen-hypercraft.github.io/contents/';
         const rootPath = '';
 
         function getPathFromUrl() {
@@ -47,7 +47,7 @@
 
         function updateBreadcrumb(path) {
             const parts = path.split('/');
-            let html = '<a href="/contents">Home</a>';
+            let html = '<a href="/contents/">Home</a>';
             let currentPath = '';
             parts.forEach((part, index) => {
                 if (part !== rootPath || index === 0) {
