@@ -36,6 +36,14 @@
             fetch(apiBase + path)
                 .then(response => response.json())
                 .then(data => {
+                    // Sort the data: folders first, then files, both in alphabetical order
+                    data.sort((a, b) => {
+                        if (a.type !== b.type) {
+                            return a.type === 'dir' ? -1 : 1;
+                        }
+                        return a.name.localeCompare(b.name);
+                    });
+
                     fileList.innerHTML = '';
                     data.forEach(item => {
                         fetchItemDetails(item, path);
