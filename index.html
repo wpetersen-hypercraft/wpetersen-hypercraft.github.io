@@ -38,39 +38,71 @@
             return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
         }
         
+        // Function to format file size
+        function formatSize(sizeInBytes) {
+            if (sizeInBytes < 1024) {
+            return sizeInBytes + ' B';
+            } else if (sizeInBytes < 1024 * 1024) {
+            return (sizeInBytes / 1024).toFixed(2) + ' KB';
+            } else {
+            return (sizeInBytes / (1024 * 1024)).toFixed(2) + ' MB';
+            }
+        }
+        
         // Function to load and display files
         function loadFiles() {
-            fetch('https://api.github.com/repos/wpetersen-hypercraft/wpetersen-hypercraft.github.io/contents/')
+            const owner = 'wpetersen-hypercraft';
+            const repo = 'wpetersen-hypercraft.github.io';
+            const path = ''; // Empty string for root directory, or specify a path
+        
+            fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${path}`)
             .then(response => response.json())
             .then(data => {
                 const fileList = document.getElementById('file-list');
                 fileList.innerHTML = ''; // Clear existing content
         
                 data.forEach(item => {
-                if (item.type === 'file') {
-                    const row = document.createElement('tr');
-                    
-                    const nameCell = document.createElement('td');
-                    const link = document.createElement('a');
-                    link.href = item.download_url;
-                    link.textContent = item.name;
-                    nameCell.appendChild(link);
-                    
-                    const dateCell = document.createElement('td');
-                    dateCell.textContent = formatDate(item.created_at); // Use the new formatDate function
-                    
-                    const sizeCell = document.createElement('td');
-                    sizeCell.textContent = (item.size / 1024).toFixed(2) + ' KB';
-                    
-                    row.appendChild(nameCell);
-                    row.appendChild(dateCell);
-                    row.appendChild(sizeCell);
-                    
-                    fileList.appendChild(row);
-                }
+                const row = document.createElement('tr');
+                
+                const nameCell = document.createElement('td');
+                const link = document.createElement('a');
+                link.href = item.html_url; // Link to the file on GitHub
+                link.textContent = item.name;
+                nameCell.appendChild(link);
+                
+                const dateCell = document.createElement('td');
+                // We'll need to fetch commit information to get the last modified date
+                fetchLastCommitDate(owner, repo, item.path)
+                    .then(date => {
+                    dateCell.textContent = formatDate(date);
+                    })
+                    .catch(() => {
+                    dateCell.textContent = 'N/A';
+                    });
+                
+                const sizeCell = document.createElement('td');
+                sizeCell.textContent = formatSize(item.size);
+                
+                row.appendChild(nameCell);
+                row.appendChild(dateCell);
+                row.appendChild(sizeCell);
+                
+                fileList.appendChild(row);
                 });
             })
             .catch(error => console.error('Error:', error));
+        }
+        
+        // Function to fetch the last commit date for a file
+        function fetchLastCommitDate(owner, repo, path) {
+            return fetch(`https://api.github.com/repos/${owner}/${repo}/commits?path=${path}&page=1&per_page=1`)
+            .then(response => response.json())
+            .then(commits => {
+                if (commits.length > 0) {
+                return commits[0].commit.committer.date;
+                }
+                throw new Error('No commit information found');
+            });
         }
         
         // Call loadFiles when the page loads
