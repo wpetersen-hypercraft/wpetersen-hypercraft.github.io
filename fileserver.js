@@ -89,29 +89,27 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function fetchItemDetails(item, path) {
-        const apiPath = `/${path}/${item.name}`.replace(/^\/+/, '');
-        const fullApiUrl = `${apiBase}/${apiPath}`;
-        console.log('Fetching details for:', fullApiUrl);
+        const apiPath = `${path}/${item.name}`.replace(/^\/+/, '');
+        const fullApiUrl = `${apiBase.replace('/contents', '')}/commits?path=${encodeURIComponent(apiPath)}&page=1&per_page=1`;
+        console.log('Fetching commit details for:', fullApiUrl);
         
         fetch(fullApiUrl)
             .then(response => {
-                console.log('Item details response status:', response.status);
+                console.log('Commit details response status:', response.status);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
                 return response.json();
             })
             .then(data => {
-                console.log('Received item details:', JSON.stringify(data, null, 2));
+                console.log('Received commit details:', JSON.stringify(data, null, 2));
                 let itemPath = `/${path}/${item.name}`.replace(/\/+/g, '/');
                 const row = fileExplorer.querySelector(`a[href="${itemPath}"]`).closest('tr');
                 if (row) {
                     let dateString = 'Date not available';
-                    if (data && data.commit && data.commit.committer && data.commit.committer.date) {
-                        dateString = new Date(data.commit.committer.date).toLocaleString();
-                    } else if (data && data.date) {
-                        // Fallback to 'date' property if it exists
-                        dateString = new Date(data.date).toLocaleString();
+                    if (data && data.length > 0 && data[0].commit && data[0].commit.committer && data[0].commit.committer.date) {
+                        const date = new Date(data[0].commit.committer.date);
+                        dateString = date.toLocaleString();
                     }
                     console.log('Updating date for:', itemPath, 'to:', dateString);
                     row.cells[1].textContent = dateString;
@@ -120,7 +118,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(error => {
-                console.error('Error fetching item details:', error);
+                console.error('Error fetching commit details:', error);
                 let itemPath = `/${path}/${item.name}`.replace(/\/+/g, '/');
                 const row = fileExplorer.querySelector(`a[href="${itemPath}"]`).closest('tr');
                 if (row) {
@@ -128,7 +126,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
     }
-    
+
     function handleNavigation(path) {
         path = path.replace(/^\/+|\/+$/g, '');
         let parts = path.split('/').filter(Boolean);
