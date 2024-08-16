@@ -8,9 +8,6 @@ document.addEventListener('DOMContentLoaded', function() {
         let path = window.location.pathname.split('/').filter(Boolean);
         if (path[0] !== rootPath) {
             path.unshift(rootPath);
-        } else if (path.length > 1 && path[1] === rootPath) {
-            // Remove duplicate 'contents' if it appears twice at the start
-            path.splice(1, 1);
         }
         return path.join('/');
     }
@@ -30,8 +27,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function fetchFiles(path) {
         updateBreadcrumb(path);
-        fetch(apiBase + path)
-            .then(response => response.json())
+        const apiPath = path.replace(/^contents\//, ''); // Remove leading 'contents/' for API call
+        fetch(apiBase + apiPath)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (Array.isArray(data)) {
                     data.sort((a, b) => {
@@ -53,7 +56,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     `;
 
                     data.forEach(item => {
-                        let itemPath = `/${rootPath}/${item.path.replace(`${rootPath}/`, '')}`;
+                        let itemPath = `/${path}/${item.name}`.replace(/\/+/g, '/');
                         tableHtml += `
                             <tr>
                                 <td>${item.type === 'dir' ? '📁' : '📄'} <a href="${itemPath}">${decodeURIComponent(item.name)}</a></td>
@@ -66,7 +69,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     tableHtml += '</tbody>';
                     fileExplorer.innerHTML = tableHtml;
 
-                    data.forEach(item => fetchItemDetails(item));
+                    data.forEach(item => fetchItemDetails(item, path));
                 } else {
                     // Single file, redirect to its raw content
                     window.location.href = data.download_url;
@@ -78,11 +81,12 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    function fetchItemDetails(item) {
-        fetch(`${apiBase}${item.path}?ref=main`)
+    function fetchItemDetails(item, path) {
+        const apiPath = `${path}/${item.name}`.replace(/^contents\//, '');
+        fetch(`${apiBase}${apiPath}?ref=main`)
             .then(response => response.json())
             .then(data => {
-                let itemPath = `/${rootPath}/${item.path.replace(`${rootPath}/`, '')}`;
+                let itemPath = `/${path}/${item.name}`.replace(/\/+/g, '/');
                 const row = fileExplorer.querySelector(`a[href="${itemPath}"]`).closest('tr');
                 row.cells[1].textContent = new Date(data.commit.committer.date).toLocaleString();
             })
@@ -99,9 +103,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Ensure 'contents' is the first part, but only once
         if (parts[0] !== rootPath) {
             parts.unshift(rootPath);
-        } else if (parts.length > 1 && parts[1] === rootPath) {
-            // Remove duplicate 'contents' if it appears twice at the start
-            parts.splice(1, 1);
         }
         
         // Reconstruct the path
